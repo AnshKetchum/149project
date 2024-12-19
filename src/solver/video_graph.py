@@ -3,8 +3,6 @@ import networkx as nx
 import numpy as np
 import threading
 import queue
-from util import UtilityFunctions as uf
-from Graph import Graph as gr
 import asyncio
 import sys 
 import os 
@@ -12,16 +10,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 from SMrTa.MRTASolver import MRTASolver, Robot
 from SMrTa.MRTASolver.objects import Task
 
+from solver.graph import Graph as gr
+from central.util import UtilityFunctions as uf
+
 
 MOVE_DURATION_MS = 13  # 13 ms to move 1 cm
 TURN_DURATION_MS = 50  # 50 ms to turn 45 degrees
 DIAGONAL_MULTIPLIER = 1.414  # sqrt(2) for diagonal movement
-
-def main():
-    video = "img/video/test_red_close.mov"
-    vg = VideoToGraph(75, 150, video)
-    vg.start_environment()
-    vg.tear_down()
 
 class VideoToGraph:
     
@@ -853,6 +848,12 @@ class VideoToGraph:
         gr.print_path_weights(self.graph, length)
         gr.print_path_weights(self.graph, height)
         gr.print_path_weights(self.graph, diagonal)
+
+def main():
+    video = "img/video/test_red_close.mov"
+    vg = VideoToGraph(75, 150, video)
+    vg.start_environment()
+    vg.tear_down()
 
 if __name__ == "__main__":
     main()
