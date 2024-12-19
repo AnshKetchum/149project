@@ -20,41 +20,6 @@ DIAGONAL_MULTIPLIER = 1.414  # sqrt(2) for diagonal movement
 
 class VideoToGraph:
     
-    def initialize_tracker(self, cap):
-
-        # Capture frame-by-frame
-        ret, frame = self.cap.read()
-
-        # if frame is read correctly ret is True
-        if not ret:
-            print("Can't receive frame (stream end?). Exiting ...")
-            cap.release()
-            cv.destroyAllWindows()
-            exit()
-
-        # Initialize a list for trackers and bounding boxes
-        self.robot_trackers = []
-        self.robot_bounding_boxes = []
-        
-        # Select multiple ROIs manually or programmatically
-        while True:
-            # Manually select bounding boxes
-            bbox = cv.selectROI("Frame", frame, fromCenter=False, showCrosshair=True)
-            self.robot_bounding_boxes.append(bbox)
-            
-            # Initialize a tracker for this bounding box
-            tracker = cv.TrackerKCF.create()  # Change tracker type if needed
-            tracker.init(frame, bbox)
-            self.robot_trackers.append(tracker)
-            
-            # Ask user if they want to select more bounding boxes
-            print("Press 'y' to select another object or any other key to continue")
-            key = cv.waitKey(0)
-            if key != ord('y'):
-                break
-
-            cv.destroyWindow("Frame")
-
     #initialize
     def __init__(self, height, length, video_file, robots, metric = True, thread = True):
 
@@ -108,7 +73,7 @@ class VideoToGraph:
         if thread:
             self.thread = threading.Thread(target=self.start_environment, daemon=True)
             self.thread.start()
-            
+
         self.overlay_update_frame_interval = 1
 
     # Video input
@@ -324,26 +289,29 @@ class VideoToGraph:
             
             if self.tracked_robots == {}:
                 # Find all robots, actions, and grab the SMT solution
-                self.tracked_robots = uf.get_all_objects(self.cap)
+                o = uf.get_all_objects(self.cap)
 
-                actions = [ self.tracked_robots[a] for a in self.tracked_robots if a.startswith('action')]
-                robots = [ self.tracked_robots[a] for a in self.tracked_robots if a.startswith('robot')]
+                actions = [ o[a] for a in o if a.startswith('action')]
+                robots = [ o[a] for a in o if a.startswith('robot')]
 
-                self.smt_solution = self.run_solver(actions, robots)
-                self.smt_solution = self.convert_solution_to_schedules(self.smt_solution)
-                self.smt_solution = self.generate_point_to_point_movement_instructions(self.smt_solution)
+                if actions:
+                    self.smt_solution = self.run_solver(actions, robots)
+                    self.smt_solution = self.convert_solution_to_schedules(self.smt_solution)
+                    self.smt_solution = self.generate_point_to_point_movement_instructions(self.smt_solution)
+
+                    self.smt_dict = {}
+
+                    for rob, sol in zip(robots, self.smt_solution):
+                        self.smt_dict[rob.name] = {
+                            'name' : rob.name,
+                            'solution' : sol,
+                            'robot' : rob
+                        }
+                    
                 self.done_smt = True
+                self.tracked_robots = o
 
-                self.smt_dict = {}
-
-                for rob, sol in zip(robots, self.smt_solution):
-                    self.smt_dict[rob.name] = {
-                        'name' : rob.name,
-                        'solution' : sol,
-                        'robot' : rob
-                    }
-
-          
+            # print("Updating robot positions from trackers")
             self.update_robot_positions_from_trackers(frame)
             for i in range(len(self.robot_trackers)):
                 self.draw_robot_position(overlay_image, i)
@@ -387,6 +355,15 @@ class VideoToGraph:
             if not self.frame_queue.full():
                 self.frame_queue.put(overlay_image)
             frame_count += 1
+
+    def completed_initial_smt(self):
+        return self.done_smt
+    
+    def set_block_size(self, val):
+        self.block_size_cm = val 
+        
+    def get_block_size(self):
+        return self.block_size_cm
 
     def no_robots(self):
         return not self.tracked_robots.__contains__(uf.ROBOT_ONE) and not self.tracked_robots.__contains__(uf.ROBOT_TWO)

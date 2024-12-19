@@ -247,9 +247,6 @@ class Graph(nx.Graph):
 
         return total
 
-    
-
-
     @staticmethod
     def heuristic(node, goal):
         return uf.euclidean_distance(node, goal)       

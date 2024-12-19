@@ -20,9 +20,13 @@ class IndividualNode(Actor):
         device_data = BluetoothAPI.get_device_data(name)
         physical_interface = RobotPhysicalInterface(device_data['address'], device_data['name'], device_data['write_uuid'])
 
+        # Initialize the physical interface
+        physical_interface.init()
+
         # Set the physical interface
         self.set_physical_interface(physical_interface)
 
-
-
+    def __del__(self):
+        if self.physical_interface:
+            self.physical_interface.disconnect()
 

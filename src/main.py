@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import cv2 as cv
 from central.central import CentralNode
 from utils import UtilityFunctions
+from frames.references import Frame, FramePipeline
 
 
 DIAGONAL_MULTIPLIER = 1.414
@@ -55,12 +56,20 @@ def driver_code(video_input, robots):
     central_node.vg.overlay_update_frame_interval = 1
     last_time = time.time()
     
+
+    # Frame 1 
+    frame1 = Frame(central_node.vg.square_length_cm, central_node.vg.square_height_cm)
+    frame2 = Frame(central_node.vg.square_length_cm / central_node.vg.get_block_size(), central_node.vg.square_height_cm / central_node.vg.get_block_size())
+
+    central_node.frame_pipeline = FramePipeline([frame1, frame2], [(1 / central_node.vg.get_block_size(), 1 / central_node.vg.get_block_size())])
+
     while not central_node.vg.done_smt:
         print("Waiting for SMT to be detected")
         time.sleep(1)
 
     # 
-    q = central_node.vg.tracked_qr_objects
+    
+    q = central_node.vg.tracked_robots
     robots = [q[a] for a in q if a.startswith('robot') ]
 
     try:
@@ -88,13 +97,11 @@ def driver_code(video_input, robots):
 
                     print("Calibrating", central_node.tracking_robot(uf.ROBOT_ONE))
                     if not central_node.tracking_robot(uf.ROBOT_ONE):
-                        robots = central_node.init_robots(get_robot_configs(uf.ROBOT_ONE))
                         central_node.robot_calibration_and_sync(robots)
                 if pos2:
                     instructions.append((uf.ROBOT_TWO, (float(pos2[0]), float(pos2[1]))))
                     print("Calibrating", central_node.tracking_robot(uf.ROBOT_TWO))
                     if not central_node.tracking_robot(uf.ROBOT_TWO):
-                        robots = central_node.init_robots(get_robot_configs(uf.ROBOT_TWO))
                         central_node.robot_calibration_and_sync(robots)
 
                 # ### Stage 2 --> Action Point Scheduling
@@ -133,11 +140,11 @@ def driver_code(video_input, robots):
                 for name in central_node.vg.smt_dict:
                     rob = central_node.vg.smt_dict[name]
                     sol = rob['solution']
+                    robot = rob['robot']
 
                     if len(sol):
                         print("Running SMT solution")
-                        move_robot = central_node.find_robot_by_name(rob['name'])[0]
-                        central_node.send_instruction(move_robot, sol[0])
+                        central_node.send_instruction(robot, sol[0])
                         sol.pop(0)
                 # ### Stage 3 -> Path Planning
                 # for act in scheduled_tasks:

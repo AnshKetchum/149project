@@ -17,8 +17,8 @@ class CentralNode:
     CORNER_OFFSET_CM = 0.5 # offset from the corner to the edge of our rectangle
     HEIGHT_CM = 61.5 - 2*CORNER_OFFSET_CM  
     LENGTH_CM = 92 - 2*CORNER_OFFSET_CM
-    def __init__(self, camera_input, robots):
-        self.vg = v2g.VideoToGraph(CentralNode.HEIGHT_CM, CentralNode.LENGTH_CM, camera_input, robots)
+    def __init__(self, camera_input, robots, thread = True):
+        self.vg = v2g.VideoToGraph(CentralNode.HEIGHT_CM, CentralNode.LENGTH_CM, camera_input, robots, thread=thread)
         self.robot_data = robots
         self.camera_input = camera_input
         self.has_already_calibrated = False
@@ -30,10 +30,11 @@ class CentralNode:
         pass 
 
     def find_robot_by_name(self, name):
-        return [r for r in self.robots if r.device_name == name]
+        print("Searching for robot", name)
+        return [r for r in self.robots if r.name == name]
 
     def tracking_robot(self, name):
-        return any([r.device_name == name for r in self.robots])
+        return any([r.name== name for r in self.robots])
     
     def schedule_task(self, action, available_robots):
         return available_robots[0]
@@ -43,7 +44,7 @@ class CentralNode:
             return False 
         
         for rob in self.robots:
-            if rob.device_name not in self.vg.tracked_qr_objects:
+            if rob.name not in self.vg.tracked_qr_objects:
                 print("CANT CALIBRATE!!! DIDNT FIND", rob.device_name)
                 return False
         
@@ -52,11 +53,6 @@ class CentralNode:
             return True 
 
         return False
-
-    def calibrate(self):
-        print("CALIBRATING!!!")
-        self.robot_calibration_and_sync()
-
 
     def init_robots(self, robots, reconnect_time = 2):
         all_robots = []
@@ -143,13 +139,13 @@ class CentralNode:
     def send_instruction(self, robot, instruction, duration=None):
         print("Sending instruction ", instruction)
         if instruction.startswith('F'):
-            robot.move(int(instruction.split(':')[-1]))
+            robot.physical_interface.move(self.frame_pipeline.backward_temp(int(instruction.split(':')[-1])))
         elif instruction.startswith('L'):
-            robot.turn(-int(instruction.split(':')[-1]))
+            robot.physical_interface.turn(-int(instruction.split(':')[-1]))
         elif instruction.startswith('R'):
-            robot.turn(int(instruction.split(':')[-1]))
+            robot.physical_interface.turn(int(instruction.split(':')[-1]))
         elif instruction.startswith('P') or  instruction.startswith('D'):
-            robot.turn(360)
+            robot.physical_interface.turn(360)
             # self.motor_controller.spin()
         elif instruction.startswith('W'):
             pass # TO IMPLEMENT
@@ -161,20 +157,53 @@ class CentralNode:
         # move forward, orientation etc
         calibration = {}
         for robot in robots:
-            print("Calibrating", robot.device_name)
+            print("Calibrating", robot.name)
             calibration_mapping  = self.vg.pixel_conversion.copy()
             
-            # Move the robot forward 1 
+            # Calibrate movement
             calibration = self.calibrate_robot(robot)
-            robot.set_calibration(calibration)
+            self.robots.append(robot)
             print("DOOONE")
 
-    def calibrate_robot(self, robot):
-        initial_pos = self.vg.get_robot_positions(robot.device_name)
-        robot.move(1)
-        final_pos = self.vg.get_robot_positions(robot.device_name)
-        distance = gr.adjust_distance_based_on_correction_pixel(self.vg.graph, initial_pos, final_pos, self.vg.pixel_conversion)
+    def calibrate_robot(self, robot, target = 1, eps = 1e-2):
+        print("Calibrating", robot.name)
+
+        # Attempt to calibrate in the image frame first
+
+
+        dists = 1e9 
+        move_amount = 1
+
+        while abs(dists - target) > eps:
+            initial_pos = robot.get_location() #self.vg.get_robot_positions(robot.name)
+
+            robot.physical_interface.move(move_amount)
+
+            final_pos = robot.get_location()
+
+            dists = (final_pos[0] - initial_pos[0]) ** 2 + (final_pos[1] - initial_pos[1]) ** 2
+
+            # Revert the move
+            robot.physical_interface.move(-move_amount)
+
+            if dists > target:
+                move_amount = move_amount / 2
+            
+            elif dists < target:
+                move_amount = move_amount * 2
+
+            print("Distance", dists)
+            print(initial_pos, final_pos)
+            print("Trying move amount of", move_amount)
+
+        # target units of movement requires a move input of move_amount
+        conversion_factor = move_amount / target
+        robot.physical_interface.set_calibration(conversion_factor)
+        return conversion_factor
+
+        # distance = gr.adjust_distance_based_on_correction_pixel(self.vg.graph, initial_pos, final_pos, self.vg.pixel_conversion)
         
+        # print("Move distance", distance)
 
         # direction = gr.direction_pixel(initial_pos, final_pos, distance/3)
         # if direction == gr.DIAGONAL:

@@ -101,6 +101,7 @@ class UtilityFunctions:
                 cv.destroyAllWindows()
                 exit()
         
+        print(points, "HIIII")
         rectangles = UtilityFunctions.make_rectangle(points)
         corners = {
             UtilityFunctions.TOP_LEFT: rectangles[0], 
