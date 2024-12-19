@@ -2,9 +2,20 @@ import cv2 as cv
 from collections import deque
 import numpy as np
 
+from enum import Enum
+
+
+# Enum to define Actor types
+class ActorType(Enum):
+    ROBOT = "ROBOT"
+    ACTION = "ACTION"
+    MISC = "MISC"
+
 
 # Actor class to define a simple object being tracked by central node vision
 class Actor:
+    TYPE = ActorType.MISC
+
     def __init__(self, name):
         self.name = name
         self.tracker = cv.TrackerCSRT_create()
@@ -13,10 +24,14 @@ class Actor:
         self.origin = None
         self.orientation = None  # Angle in degrees
         self.orientation_point = None  # Point indicating orientation
+        self.physical_interface = None # Represent the physical, "world frame" representation of the object
 
     def initialize_tracker(self, frame, bbox):
         self.bbox = bbox
         self.tracker.init(frame, bbox)
+    
+    def set_physical_interface(self, physical_interface):
+        self.physical_interface = physical_interface
 
     def update(self, frame):
         success, new_bbox = self.tracker.update(frame)
@@ -117,4 +132,3 @@ class Environment:
             actor.history.clear()
             actor.bbox = None
             actor.tracker.clear()
-

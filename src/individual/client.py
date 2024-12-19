@@ -1,11 +1,14 @@
 import requests
+from dotenv import load_dotenv
+import json 
+import os
 
-class Robot:
+from apis.bluetooth import BluetoothAPI
+
+class RobotPhysicalInterface(BluetoothAPI):
     def __init__(self, device_address: str, device_name: str, characteristic_uuid: str, reconnect_time = 2, api_url: str = "http://127.0.0.1:8000"):
-        self.device_address = device_address
-        self.device_name = device_name
-        self.characteristic_uuid = characteristic_uuid
-        self.api_url = api_url
+        super().__init__(device_address, device_name, characteristic_uuid, reconnect_time, api_url)
+
         self.calibration = 1
 
     def init(self):
@@ -30,39 +33,6 @@ class Robot:
                 "device_address": self.device_address,
                 "characteristic_uuid": self.characteristic_uuid,
         })
-        return response.json()
-
-    def connect(self):
-        """Synchronous wrapper for the connect API."""
-        response = requests.post(f"{self.api_url}/connect", json={
-                "device_address": self.device_address,
-                "characteristic_uuid": self.characteristic_uuid,
-        })
-        return response.json()
-
-    def disconnect(self):
-        """Synchronous wrapper for the disconnect API."""
-        response = requests.post(f"{self.api_url}/disconnect", json={
-                "device_address": self.device_address,
-                "characteristic_uuid": self.characteristic_uuid,
-        })
-        return response.json()
-
-    def send_command(self, command: str, need_data: bool = False):
-        """Synchronous wrapper for sending commands."""
-        c = self.connect()
-        print("CONNECTION", c)
-
-        data = {"command": command, "need_data": need_data}
-        response = requests.post(f"{self.api_url}/send_command", json={
-            "robot_connection" : {
-                "device_address": self.device_address,
-                "characteristic_uuid": self.characteristic_uuid,
-            },
-            "command" : data
-        })
-        
-
         return response.json()
 
     def get_angle_data(self):
@@ -91,31 +61,3 @@ class Robot:
         """Reset distance data."""
         return self.send_command("ENCODER+3")
 
-# Usage example:
-
-if __name__ == "__main__":
-    import json 
-    with open('devices.json', 'r') as f:
-        dct = json.load(f)
-    
-    d = dct["devices"][0]
-    robot = Robot(device_address=d['address'], characteristic_uuid=d['write_uuid'])
-
-    # Register and connect the robot
-    print(robot.add_robot())
-    print(robot.connect())
-
-    # Get angle data
-    print(robot.get_angle_data())
-
-    # Move the robot
-    print(robot.move(5))
-
-    # Turn the robot
-    print(robot.turn(90))
-
-    # Get distance data
-    print(robot.get_distance_data())
-
-    # Disconnect from the robot
-    print(robot.disconnect())

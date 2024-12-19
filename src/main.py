@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 import cv2 as cv
 from central.central import CentralNode
-from central.util import UtilityFunctions
+from utils import UtilityFunctions
 
 
 DIAGONAL_MULTIPLIER = 1.414

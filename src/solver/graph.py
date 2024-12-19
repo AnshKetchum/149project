@@ -4,7 +4,7 @@ import numpy as np
 from typing import Optional
 import cv2 as cv
 
-from central.util import UtilityFunctions as uf
+from utils import UtilityFunctions as uf
 
 class Graph(nx.Graph):
 

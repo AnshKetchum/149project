@@ -3,6 +3,7 @@ import cv2 as cv
 import numpy as np
 import math
 
+from individual.actor import IndividualNode
 from central.vision import Actor, Environment
 
 def main():
@@ -31,15 +32,35 @@ environment_width_cm = dimensions[0]
 environment_height_cm = dimensions[1]
 environment = Environment(grid_size)
 
-def add_actor_to_environment(frame, polygon, name):
+def add_actor_to_environment(frame, polygon, name: str):
+
+    # Grab physical actor coordinates
     x_coords = [p[0] for p in polygon]
     y_coords = [p[1] for p in polygon]
     min_x, max_x = min(x_coords), max(x_coords)
     min_y, max_y = min(y_coords), max(y_coords)
     bbox = (min_x, min_y, max_x - min_x, max_y - min_y)
-    actor = Actor(name=name)
-    actor.initialize_tracker(frame, bbox)
-    environment.add_actor(actor)
+
+    # Define actor methods 
+    actor = None 
+
+    if name.startswith('robot'):
+        if IndividualNode.can_connect(name):
+            print("Creating physical robot", name)
+            actor = IndividualNode(name=name)
+        else: 
+            print("Failed to create robot")
+
+    elif name.startswith('action'):
+        print("Creating action point", name)
+        actor = Actor(name=name)
+    else:
+        print("Creating misc actor", name)
+        actor = Actor(name=name)
+
+    if actor is not None:
+        actor.initialize_tracker(frame, bbox)
+        environment.add_actor(actor)
 
 
 class UtilityFunctions:
@@ -53,32 +74,6 @@ class UtilityFunctions:
     ROBOT_ONE_RANGE = ((100, 150, 0), (140, 255, 255))
     ROBOT_TWO_RANGE = ((4, 53, 50), (24, 93, 86))
     TEXT_DISTANCE = 65
-    @staticmethod
-    def get_color_range(image, rgb):
-
-        # Convert RGB to HSV using OpenCV
-        rgb_color = np.uint8([[rgb]])  # Input color in RGB
-        hsv_color = cv.cvtColor(rgb_color, cv.COLOR_RGB2HSV)
-        hue, sat, val = hsv_color[0][0]
-
-        # Define the color range (you can tweak the ± values as needed)
-        lower_bound = np.array([hue - 10, max(50, sat - 20), max(50, val - 20)], dtype=np.uint8)
-        upper_bound = np.array([hue + 10, min(255, sat + 20), min(255, val + 20)], dtype=np.uint8)
-
-        print("Lower HSV Bound:", lower_bound)
-        print("Upper HSV Bound:", upper_bound)
-
-        # Example of applying this to a mask
-        hsv_image = cv.cvtColor(image, cv.COLOR_BGR2HSV)  # Convert image to HSV
-        mask = cv.inRange(hsv_image, lower_bound, upper_bound)  # Create a mask
-
-        # Optional: Visualize the result
-        result = cv.bitwise_and(image, image, mask=mask)
-        cv.imshow("Original Image", image)
-        cv.imshow("Mask", mask)
-        cv.imshow("Result", result)
-        cv.waitKey(0)
-        cv.destroyAllWindows()
 
     @staticmethod
     def find_corners_feed(cap):
@@ -315,17 +310,6 @@ class UtilityFunctions:
         return (center_x,center_y)
 
     @staticmethod
-    def show_node_positions(matrix, point = (0,0)):
-        affine = UtilityFunctions.apply_affine_transform(point, matrix)
-        inverse = UtilityFunctions.apply_inverse_affine_transform(point, matrix)
-        print(f"point: {point}, affine: {affine}, inverse: {inverse}")
-
-    @staticmethod
-    def visualize_mask(hsv, lower, upper):
-        mask = cv.inRange(hsv, lower, upper)
-        cv.imshow("Mask", mask)
-
-    @staticmethod
     def kahan_sum(numbers):
         total = 0.0     
         c = 0.0         
@@ -340,7 +324,7 @@ class UtilityFunctions:
     
 
     @staticmethod
-    def get_all_objects(H, cap):
+    def get_all_objects(cap):
         global temp_frame
         global points, polygon, tracking, polygon_complete, phase
 
@@ -354,6 +338,7 @@ class UtilityFunctions:
                     print(f"Point {len(points)}: {x}, {y}")
                     cv.circle(temp_frame, (x, y), 5, (0, 0, 255), -1)
                     cv.imshow("Video Feed", temp_frame)
+
                 elif phase == 1 and tracking:
                     if not polygon_complete:
                         polygon.append((x, y))
@@ -368,10 +353,14 @@ class UtilityFunctions:
                             print("Polygon completed.")
 
                             name = str(input("\nEnter a name for the entity")).strip()
+
                             add_actor_to_environment(frame, polygon, name)
+
                             polygon.clear()
                             print("Added new actor", name)
+
                         cv.imshow("Original Video Feed", temp_frame)
+
                 elif phase == 2:  # Orientation point selection
                     if environment.actors:
                         actor = environment.actors[-1]  # Assign orientation to the last added actor
@@ -436,6 +425,7 @@ class UtilityFunctions:
                 environment.reset_bounding_boxes()
             elif key == ord('o'):
                 phase = 2  # Switch to orientation point selection phase
+
 
 
 

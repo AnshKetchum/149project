@@ -124,6 +124,17 @@ async def send_command(robot_connection: RobotConnection, command: RobotCommand)
     robot = robots[robot_connection.device_address]
     return await robot.send_command(command.command, command.need_data)
 
+@app.post("/can_connect")
+async def can_connect(robot_connection: RobotConnection):
+    """Check if the device can be connected to."""
+    try:
+        # Create a temporary BleakClient instance to test connectivity
+        client = BleakClient(robot_connection.device_address)
+        await client.connect()
+        await client.disconnect()
+        return {"status": "can_connect", "message": f"Device {robot_connection.device_address} is reachable."}
+    except Exception as e:
+        return {"status": "cannot_connect", "message": f"Failed to connect to {robot_connection.device_address}: {e}"}
 
 # API to connect to a specific robot by address
 @app.post("/connect")
@@ -149,6 +160,24 @@ async def disconnect(robot_connection: RobotConnection):
             return await robots[robot_connection.device_address].disconnect()
     else:
         return {"status" : "disconnected"}
+
+@app.post("/refresh")
+async def refresh():
+    """Disconnect all devices and clear the robots dictionary."""
+    global robots
+
+    try:
+        # Disconnect all robots currently in the dictionary
+        for robot in robots.values():
+            if robot.client and robot.client.is_connected:
+                await robot.disconnect()
+
+        # Clear the dictionary
+        robots.clear()
+
+        return {"message": "All devices disconnected and dictionary cleared."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to refresh: {e}")
 
 
 # Clean shutdown to disconnect all robots

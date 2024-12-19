@@ -11,7 +11,7 @@ from SMrTa.MRTASolver import MRTASolver, Robot
 from SMrTa.MRTASolver.objects import Task
 
 from solver.graph import Graph as gr
-from central.util import UtilityFunctions as uf
+from utils import UtilityFunctions as uf
 
 
 MOVE_DURATION_MS = 13  # 13 ms to move 1 cm
@@ -56,10 +56,10 @@ class VideoToGraph:
             cv.destroyWindow("Frame")
 
     #initialize
-    def __init__(self, height, length, video_file, robots, metric = True):
+    def __init__(self, height, length, video_file, robots, metric = True, thread = True):
 
         # video feed
-        self.cap = self.initialize_camera(video_file)
+        self.cap = VideoToGraph.initialize_camera(video_file)
 
         # Display toggles
         self.display_grid = True
@@ -104,12 +104,15 @@ class VideoToGraph:
         # relay processed video via thread to avoid creating a blocking call
         self.frame_queue = queue.Queue(maxsize=1)
         self.running = True
-        self.thread = threading.Thread(target=self.start_environment, daemon=True)
-        self.thread.start()
+
+        if thread:
+            self.thread = threading.Thread(target=self.start_environment, daemon=True)
+            self.thread.start()
+            
         self.overlay_update_frame_interval = 1
 
     # Video input
-    def initialize_camera(self, camera = int(0)):
+    def initialize_camera(camera = int(0)):
         capture = cv.VideoCapture(camera) # 0 is the default camera, can also take a file
 
         if not capture.isOpened():
@@ -321,7 +324,7 @@ class VideoToGraph:
             
             if self.tracked_robots == {}:
                 # Find all robots, actions, and grab the SMT solution
-                self.tracked_robots = uf.get_all_objects(self.H, self.cap)
+                self.tracked_robots = uf.get_all_objects(self.cap)
 
                 actions = [ self.tracked_robots[a] for a in self.tracked_robots if a.startswith('action')]
                 robots = [ self.tracked_robots[a] for a in self.tracked_robots if a.startswith('robot')]

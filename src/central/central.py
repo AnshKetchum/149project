@@ -8,11 +8,10 @@ import requests
 
 from solver.graph import Graph as gr
 import solver.video_graph as v2g
-from individual.client import Robot as IndividualNode
+from individual.client import RobotPhysicalInterface as IndividualNode
 
-from central.util import UtilityFunctions as uf
+from utils import UtilityFunctions as uf
 
-DIAGONAL_MULTIPLIER = 1.414
 class CentralNode:
 
     CORNER_OFFSET_CM = 0.5 # offset from the corner to the edge of our rectangle
@@ -177,15 +176,15 @@ class CentralNode:
         distance = gr.adjust_distance_based_on_correction_pixel(self.vg.graph, initial_pos, final_pos, self.vg.pixel_conversion)
         
 
-        direction = gr.direction_pixel(initial_pos, final_pos, distance/3)
-        if direction == gr.DIAGONAL:
-            correction_factor = self.vg.block_size_cm*DIAGONAL_MULTIPLIER/distance
-            calibration =  correction_factor
-        else:
-            correction_factor = self.vg.block_size_cm/distance
-            calibration =  correction_factor
+        # direction = gr.direction_pixel(initial_pos, final_pos, distance/3)
+        # if direction == gr.DIAGONAL:
+        #     correction_factor = self.vg.block_size_cm*DIAGONAL_MULTIPLIER/distance
+        #     calibration =  correction_factor
+        # else:
+        #     correction_factor = self.vg.block_size_cm/distance
+        #     calibration =  correction_factor
 
-        return calibration
+        # return calibration
 
     def tear_down(self):
         # Stop the thread and release resources 
