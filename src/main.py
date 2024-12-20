@@ -71,6 +71,7 @@ def driver_code(video_input, robots):
     
     q = central_node.vg.tracked_robots
     robots = [q[a] for a in q if a.startswith('robot') ]
+    actions = [q[a] for a in q if a.startswith('action') ]
 
     try:
         
@@ -96,13 +97,13 @@ def driver_code(video_input, robots):
                     instructions.append((uf.ROBOT_ONE, (float(pos1[0]), float(pos1[1]))))
 
                     print("Calibrating", central_node.tracking_robot(uf.ROBOT_ONE))
-                    if not central_node.tracking_robot(uf.ROBOT_ONE):
-                        central_node.robot_calibration_and_sync(robots)
+                    # if not central_node.tracking_robot(uf.ROBOT_ONE):
+                        # central_node.robot_calibration_and_sync(robots)
                 if pos2:
                     instructions.append((uf.ROBOT_TWO, (float(pos2[0]), float(pos2[1]))))
                     print("Calibrating", central_node.tracking_robot(uf.ROBOT_TWO))
-                    if not central_node.tracking_robot(uf.ROBOT_TWO):
-                        central_node.robot_calibration_and_sync(robots)
+                    # if not central_node.tracking_robot(uf.ROBOT_TWO):
+                    #     central_node.robot_calibration_and_sync(robots)
 
                 # ### Stage 2 --> Action Point Scheduling
                 # # Identify all key action points and available robots
@@ -137,15 +138,41 @@ def driver_code(video_input, robots):
                 #         central_node.send_instruction(move_robot, current_instruction)
 
                 print("Running solution")
+
+                new_smt_dict = {}
                 for name in central_node.vg.smt_dict:
                     rob = central_node.vg.smt_dict[name]
                     sol = rob['solution']
                     robot = rob['robot']
+                    action = rob['action']
 
+                    completed = False
                     if len(sol):
                         print("Running SMT solution")
                         central_node.send_instruction(robot, sol[0])
                         sol.pop(0)
+
+                        if not action.intersects_with(robot.bbox):
+                            new_smt_dict[name] = rob
+                            print("NO INTERSECTION")
+                        else:
+                            print("INTERSECTION")
+                            print("Before", actions, [a.name for a in actions], action.name)
+                            actions = [a for a in actions if a.name != action.name]
+                            print("After", actions)
+                    elif len(actions) > 0 and not len(sol):
+                        print("RECOMPUTE")
+                        central_node.vg.compute_smt(actions, robots)
+                        new_smt_dict[name] = central_node.vg.smt_dict[name]
+                    
+                    
+                
+                print(new_smt_dict)
+
+                central_node.vg.smt_dict = new_smt_dict
+                if len(actions) > 0 and new_smt_dict == {}:
+                    central_node.vg.compute_smt(actions, robots)
+
                 # ### Stage 3 -> Path Planning
                 # for act in scheduled_tasks:
 

@@ -136,26 +136,38 @@ class VideoToGraph:
             )
         
         # Insanely high number, 
-        deadline = 100000000
+        deadline = 1000000000000000000
         tasks = []
 
-        for i in range(1, len(actions) - 1):
-            tasks.append(
-                Task(id = i, 
-                     start=gr.find_nearest_node(self.graph, actions[i-1].get_location()),
-                     end=gr.find_nearest_node(self.graph, actions[i].get_location()),
-                     deadline=deadline
-                     )
-            )
-        
-        tasks.append(Task(
-            id = len(tasks),
-            start=gr.find_nearest_node(self.graph, actions[-1].get_location()),
-            end=gr.find_nearest_node(self.graph, actions[0].get_location()),
-            deadline=deadline
-        ))
-            
 
+
+        if len(actions) > 1:
+            for i in range(1, len(actions) - 1):
+                tasks.append(
+                    Task(id = i, 
+                        start=gr.find_nearest_node(self.graph, actions[i-1].get_location()),
+                        end=gr.find_nearest_node(self.graph, actions[i].get_location()),
+                        deadline=deadline
+                        )
+                )
+            
+            tasks.append(Task(
+                id = len(tasks),
+                start=gr.find_nearest_node(self.graph, actions[-1].get_location()),
+                end=gr.find_nearest_node(self.graph, actions[0].get_location()),
+                deadline=deadline
+            ))
+        
+        if len(actions) == 1:
+            tasks.append(Task(
+                id = 0, 
+                start=gr.find_nearest_node(self.graph, (1, 1)),
+                end=gr.find_nearest_node(self.graph, actions[-1].get_location()),
+                deadline=deadline
+            ))
+
+            
+        print("TASKS", tasks)
         tasks_stream = [[tasks, 0]]
         self.agents = agents
         self.tasks = tasks
@@ -170,6 +182,8 @@ class VideoToGraph:
                 ap_set.append(t.start)
             if t.end not in ap_set:
                 ap_set.append(t.end)
+        
+        
 
         self.action_points = ap_set
         num_aps = len(self.action_points)
@@ -235,6 +249,7 @@ class VideoToGraph:
                     except Exception as e:
                         print(e)
 
+        print(agents, tasks_stream)
         solver = MRTASolver(
             solver_name='z3',
             theory='QF_UFBV',
@@ -254,6 +269,23 @@ class VideoToGraph:
         print("FOUND SOLUTION", solver.sol)
 
         return solver.sol
+    
+    def compute_smt(self, actions, robots):
+        self.smt_solution = self.run_solver(actions, robots)
+        self.smt_solution = self.convert_solution_to_schedules(self.smt_solution)
+        self.smt_solution = self.generate_point_to_point_movement_instructions(self.smt_solution)
+
+        self.smt_dict = {}
+
+        for rob, sol, act in zip(robots, self.smt_solution, actions):
+            self.smt_dict[rob.name] = {
+                'name' : rob.name,
+                'solution' : sol,
+                'robot' : rob,
+                'action' : act
+            }
+
+        
 
     # Create and update graph from the video input
     def start_environment(self):
@@ -295,18 +327,8 @@ class VideoToGraph:
                 robots = [ o[a] for a in o if a.startswith('robot')]
 
                 if actions:
-                    self.smt_solution = self.run_solver(actions, robots)
-                    self.smt_solution = self.convert_solution_to_schedules(self.smt_solution)
-                    self.smt_solution = self.generate_point_to_point_movement_instructions(self.smt_solution)
-
-                    self.smt_dict = {}
-
-                    for rob, sol in zip(robots, self.smt_solution):
-                        self.smt_dict[rob.name] = {
-                            'name' : rob.name,
-                            'solution' : sol,
-                            'robot' : rob
-                        }
+                    print("SMT with ", [a.name for a in actions])
+                    self.compute_smt(actions, robots)
                     
                 self.done_smt = True
                 self.tracked_robots = o

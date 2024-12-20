@@ -139,7 +139,7 @@ class CentralNode:
     def send_instruction(self, robot, instruction, duration=None):
         print("Sending instruction ", instruction)
         if instruction.startswith('F'):
-            robot.physical_interface.move(self.frame_pipeline.backward_temp(int(instruction.split(':')[-1])))
+            robot.physical_interface.move(int(instruction.split(':')[-1]) * self.vg.block_size_cm)
         elif instruction.startswith('L'):
             robot.physical_interface.turn(-int(instruction.split(':')[-1]))
         elif instruction.startswith('R'):
@@ -198,7 +198,7 @@ class CentralNode:
 
         # target units of movement requires a move input of move_amount
         conversion_factor = move_amount / target
-        robot.physical_interface.set_calibration(conversion_factor)
+        # robot.physical_interface.set_calibration(conversion_factor)
         return conversion_factor
 
         # distance = gr.adjust_distance_based_on_correction_pixel(self.vg.graph, initial_pos, final_pos, self.vg.pixel_conversion)

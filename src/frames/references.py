@@ -32,7 +32,7 @@ class FramePipeline:
         
         
         """
-        res = input_coords
+        res = list(input_coords)
 
         for (i, scale_factor) in enumerate(self.scale_factors):
             res[0], res[1] = res[0] * scale_factor[0], res[1] * scale_factor[1]

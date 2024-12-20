@@ -27,7 +27,13 @@ if __name__ == "__main__":
     print(robot.get_angle_data())
 
     # Move the robot
-    print(robot.move(0.25))
+    print(robot.move(13))
+    print(robot.turn(90))
+    print(robot.move(18))
+    print(robot.turn(180))
+    print(robot.move(10))
+    print(robot.turn(90))
+    print(robot.move(7))
 
     # Get distance data
     print(robot.get_distance_data())
